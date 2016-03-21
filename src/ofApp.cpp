@@ -22,14 +22,13 @@
  .v1 - create camera system from OSC
  
  to implement:
- - Swarm creature
+ - swarms avoid each other
  - tweak swarm appearence
  - Close in flashlight look
- - Map positions to screen
  - GL shader for swarm?
- 
- could be nice
  - ofParameter implementation for OSC
+ - look into spring behaviours for mesh with some metaballs
+ - get orientation from Wii and position from kinect
  
  USABILITY NOTES:
  - There are some user options in the beggining of the code
@@ -43,6 +42,8 @@
  - VSync locks the run speed to the screen framerate
  
  - ofMeshes are uploaded to the GPU every frame, VBOmeshes only once. Use instancing to make the best of it
+ 
+ - to use meshes that are updates frequently set mesh.setUsage(GL_STREAM_DRAW) or vbo.setUsage(GL_STREAM_DRAW)
  
  DEVELOPMENT <<<
  
@@ -62,6 +63,9 @@
  - image mapping
  https://github.com/frauzufall/ofx2DMapping
  
+ - performance 
+ https://forum.openframeworks.cc/t/porting-shiffmans-boid-flocking-java-is-spanking-my-c/2100/3
+ 
  
  INSPIRATION <<<
  http://www.creativeapplications.net/environment/augmented-shadow-openframeworks/
@@ -71,6 +75,8 @@
  http://abstract20122013.gsapp.org/binary-space-partition/
  http://zenbullets.com/images.php
  http://www.novastructura.net/wp/works/meanders/
+ http://www.algorithmicdesign.net/columbia/encoded_2012/schizometric/schizometric_6.jpg
+ http://code.algorithmicdesign.net/Schizo-Metr-ic
  
  */
 
@@ -79,19 +85,20 @@ void ofApp::setup(){
 
     /* > USER OPTIONS < */
     
-    bReport      = true;     // show system report
+    bReport      = false;    // show system report
     positionEase = 0.05;     // interpolation value for positions
-    detailAmount = 15;       // opacity level for beauty pass
     numBoids     = 300;      // number of creatures
     worldBound   = 1000.0f;  // bounding area
     float zDist  = 2000.0f;  // camera distance from center
-    
+    fadeAmnt     = 2.0;
+    detailAmount = 50;       // opacity level for beauty pass
+    float point  = 2.5;      // point size for agents
     /* > END OF USER OPTIONS < */
     
     /* ========================================================================== */
     ofSetFrameRate(0);         // program will run as fast as it can
     ofSetVerticalSync(false);  // can produce frame tearing but if feels very satisfying
-    //    ofSetFrameRate(120);
+    glPointSize(point);
     
     /* Useful stuff */
     WIDTH   = ofGetWidth();
@@ -128,6 +135,7 @@ void ofApp::setup(){
     
     flashLightPos = cam.getPosition();
     
+    /* SCENE LIGHTING */
     ofVec3f pos1 = swarmOrigin;
     ofVec3f pos2 = ofVec3f(ofRandom(worldBound),
                            ofRandom(worldBound),
@@ -165,7 +173,7 @@ void ofApp::setup(){
     light4.setPosition(pos4);
     light4.setPointLight();
     
-    /* STUFF FOR COLONY */
+    /* STUFF FOR FLOCKS */
     bounds.setPosition(swarmOrigin);
     bounds.setRadius(worldBound);
     bounds.setResolution(1);
@@ -176,21 +184,35 @@ void ofApp::setup(){
     flock2.setup(numBoids, bounds, 100, 2.5);
     flock2.setColor(200, 100 , 0, 10.10f);
 
-    flock1.setAttractor(pos1, 100, 200); flock2.setAttractor(pos1, 100, 200);
-    flock1.setAttractor(pos2, 100, 200); flock2.setAttractor(pos2, 100, 200);
-    flock1.setAttractor(pos3, 100, 200); flock2.setAttractor(pos3, 100, 200);
-    flock1.setAttractor(pos4, 100, 200); flock2.setAttractor(pos4, 100, 200);
-    glPointSize(2.5);
+    float force = ofRandom(-250, 250);
+    float dist  = ofRandom(100,  200);
+    flock1.setAttractor(pos1, force, dist); flock2.setAttractor(pos1, force, dist);
+   
+    force = ofRandom(-250, 250);
+    dist  = ofRandom(100,  200);
+    flock1.setAttractor(pos2, force, dist); flock2.setAttractor(pos2, force, dist);
+    
+    force = ofRandom(-250, 250);
+    dist  = ofRandom(100,  200);
+    flock1.setAttractor(pos3, force, dist); flock2.setAttractor(pos3, force, dist);
+    
+    force = ofRandom(-250, 250);
+    dist  = ofRandom(100,  200);
+    flock1.setAttractor(pos4, force, dist); flock2.setAttractor(pos4, force, dist);
 
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
     
-    /* SKETCH UTILS */
-    int time = ofGetFrameNum(); // sketch evolution per frame
-    // I always want to know the frameRate
+    /* UTILS */
     ofSetWindowTitle("Running at " + ofToString(ofGetFrameRate()));
+    
+    /* Update objects and variables */
+    int time = ofGetElapsedTimeMillis(); // sketch evolution per frame
+    flock1.update();
+    flock2.update();
+    worldRot = time / 20.0;
     
     /* OSC RECEIVER */
     if (bCamFromOSC) { // nothing gets updates if we dont need the values
@@ -206,32 +228,34 @@ void ofApp::update(){
                 pos.y = m.getArgAsFloat(1); // second value for y
                 
             }
-            pos.x *= WIDTH;   // re-scale to comp size
+            /* Re-scale to comp size and ease position difference */
+            pos.x *= WIDTH;
             pos.y *= HEIGHT;
             flashLightPos.x = ( (flashLightPos.x * (1 - positionEase) ) + (pos.x * positionEase) );
             flashLightPos.y = ( (flashLightPos.y * (1 - positionEase) ) + (pos.y * positionEase) );
             
         } // end of while
         
+        /* Set camera to new position */
         cam.setPosition(flashLightPos.x, flashLightPos.y, flashLightPos.z);
     }
     
-    flock1.update();
-    flock2.update();
-    worldRot = ofGetElapsedTimeMillis() / 200.0;
+
+
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-    
     
     drawScene();           // draw FBOs
     
     ofBackground(0);
     
     ofEnableAlphaBlending();
-    ofSetColor(255, 255, 255);
+    
+    ofSetColor(255, 255, 255, 255);
     scene.draw(0, 0);
+    
     ofSetColor(255, 255, 255, detailAmount);
     sceneDetail.draw(0,0);
     
@@ -242,19 +266,15 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::drawScene(){
     
-    
-    float fadeAmnt = 40.0;
-    
     scene.begin();
     ofPushStyle();
 
     ofFill();
-    ofSetColor(255, 255, 255, fadeAmnt);
+    ofSetColor(0, 0, 0, fadeAmnt);
     ofDrawRectangle(0, 0, WIDTH, HEIGHT);
     ofPopStyle();
+    
     cam.begin();
-//    light1.enable();
-//    ofEnableLighting();
     
     light1.enable();
     light2.enable();
@@ -269,41 +289,48 @@ void ofApp::drawScene(){
     flock1.draw(true, false, false, false); flock2.draw(true, false, false, false);
     ofPopMatrix();
     cam.end();
+    ofPopStyle();
     scene.end();
+    
+    light1.disable();
+    light2.disable();
+    light3.disable();
+    light4.disable();
+    ofDisableLighting();
     
     sceneDetail.begin();
     ofPushStyle();
     ofFill();
-    ofSetColor(255, 255, 255, fadeAmnt);
+    ofSetColor(0, 0, 0, fadeAmnt);
     ofDrawRectangle(0, 0, WIDTH, HEIGHT);
     ofPopStyle();
+    
     cam.begin();
-    //    light1.enable();
-    //    ofEnableLighting();
+
+    light1.enable();
+    light2.enable();
+    light3.enable();
+    light4.enable();
+    ofEnableLighting();
     
     ofNoFill();
     ofPushMatrix();
     ofRotateY(worldRot);
-    flock1.draw(false, true, true, true); flock2.draw(false, true, true, false);
+    flock1.draw(false, false, false, true); flock2.draw(false, false, false, true);
     ofPopMatrix();
     cam.end();
     sceneDetail.end();
     
+    light1.disable();
+    light2.disable();
+    light3.disable();
+    light4.disable();
     ofDisableLighting();
-    
-}
-//--------------------------------------------------------------
-void ofApp::setupWorld(){
-
-}
-
-//--------------------------------------------------------------
-void ofApp::killWorld(){
-    
 }
 
 //--------------------------------------------------------------
 void ofApp::report(){
+    
     ofPushStyle();
     ofSetColor(ofColor::darkRed);
     stringstream reportStr;
@@ -319,7 +346,7 @@ void ofApp::report(){
     << endl
     << "CONTROLS:" << endl
     << "BACKSPACE - reset camera" << endl
-    << "'C'       - toggle mouse control " << endl
+//    << "'C'       - toggle mouse control " << endl
     << "'O'       - toggle OSC control " << endl
     << endl
     << "Camera position: "

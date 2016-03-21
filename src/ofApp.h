@@ -17,8 +17,6 @@ class ofApp : public ofBaseApp{
         /* Application specific methods */
         void report();     // builds report string
         void drawScene();  // draw call for FBOs
-        void setupWorld(); // setup lights
-        void killWorld(); // call disable functions
 
 		void keyPressed(int key);
 		void keyReleased(int key);
@@ -51,8 +49,10 @@ class ofApp : public ofBaseApp{
     ofLight   flashLight;    // light is parented to camera
     ofVec3f   flashLightPos;
     ofLight   light1, light2, light3, light4;
+    
     /* FBOs */
     ofFbo scene, sceneDetail;
+    float fadeAmnt;
     
     /* Flock stuff */
     MyFlock   flock1, flock2;
@@ -60,7 +60,5 @@ class ofApp : public ofBaseApp{
     int       numBoids;
     int       type;
     ofSpherePrimitive bounds;
-
-    
 		
 };

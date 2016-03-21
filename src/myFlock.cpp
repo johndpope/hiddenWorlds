@@ -31,18 +31,19 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
     /* POPULATE MESH */
     ofMesh tempMesh;
     tempMesh.clear();
+    tempMesh.setupIndicesAuto(); // add index automatically
     tempMesh.setMode(OF_PRIMITIVE_TRIANGLES);
     
     for (int i = 0; i < numBoids; i++){
         tempMesh.addVertex(flock.boids[i]->getLoc());
-        tempMesh.addIndex(i);
     }
     flockMesh.setMode(OF_PRIMITIVE_TRIANGLES);
+    flockMesh.setUsage(GL_STREAM_DRAW);
     
     flockMesh.clear();
     flockMesh = tempMesh;
-    
 }
+
 void MyFlock::update() {
     flock.update();
     for (int i = 0; i < numBoids; i++){
