@@ -9,7 +9,8 @@
  competing swarm systems float in middair invisible from
  the unaware spectator
  
- THIS IS v6 - GL this shit, from GLpoints with texture example
+ THIS IS v7 - GL this shit, from GLpoints with texture example
+ .v6 - more than one swarm, attraction points
  .v5 - swarm extention, create wrapper class, create different rendering modes 
        (blob, lines, vertices, faces)
  .v4 - change implementation to use modified ofxBoids
@@ -39,7 +40,7 @@
  
  STUFF IM FINDING <<<
  
- - VSync locks the run speed to the framerate, 2 x framerate makes the program run twice as fast
+ - VSync locks the run speed to the screen framerate
  
  - ofMeshes are uploaded to the GPU every frame, VBOmeshes only once. Use instancing to make the best of it
  
@@ -78,18 +79,18 @@ void ofApp::setup(){
 
     /* > USER OPTIONS < */
     
-    bReport      = true; // show system report
-    positionEase = 0.05; // interpolation value for positions
-    detailAmount = 55;   // opacity level for beauty pass
-    numBoids     = 400;
-    worldBound   = 1000;
-    regionRadius = 1000;
+    bReport      = true;     // show system report
+    positionEase = 0.05;     // interpolation value for positions
+    detailAmount = 15;       // opacity level for beauty pass
+    numBoids     = 300;      // number of creatures
+    worldBound   = 1000.0f;  // bounding area
+    float zDist  = 2000.0f;  // camera distance from center
     
     /* > END OF USER OPTIONS < */
     
     /* ========================================================================== */
-    ofSetFrameRate(0);        // program will run at system refresh
-    ofSetVerticalSync(true);  // I think.....
+    ofSetFrameRate(0);         // program will run as fast as it can
+    ofSetVerticalSync(false);  // can produce frame tearing but if feels very satisfying
     //    ofSetFrameRate(120);
     
     /* Useful stuff */
@@ -97,7 +98,7 @@ void ofApp::setup(){
     HEIGHT  = ofGetHeight();
     CENTERX = ofGetWidth() / 2;
     CENTERY = ofGetHeight() / 2;
-    swarmOrigin  = ofVec3f(0, 0, -500);
+    swarmOrigin  = ofVec3f(0.0f, 0.0f, 0.0f);
     osc.setup(PORT);
     
     bCamFromOSC = false;
@@ -107,30 +108,80 @@ void ofApp::setup(){
     sceneDetail.allocate(WIDTH, HEIGHT, GL_RGBA32F_ARB);
     
     scene.begin();                                        // clear FBOs
-    ofClear(255,255,255, 0);
+    ofClear(255, 255, 255, 0);
     scene.end();
     
     sceneDetail.begin();
-    ofClear(255,255,255, 0);
+    ofClear(255, 255, 255, 0);
     sceneDetail.end();
     
     
-    flashLightPos = ofVec3f(0, 0, 000);
-    
     /* ==================== TO COME FROM OSC ==================================== */
     
-    /* TO COME FROM OSC */
+    
+    /* CAMERA */
+    camDist = ofVec3f(0.0f, 0.0f, zDist);
+    cam.setPosition(swarmOrigin - camDist);
+    cam.lookAt(swarmOrigin);
+    cam.setVFlip(true);
+    worldRot = 0.0f;
+    
+    flashLightPos = cam.getPosition();
+    
+    ofVec3f pos1 = swarmOrigin;
+    ofVec3f pos2 = ofVec3f(ofRandom(worldBound),
+                           ofRandom(worldBound),
+                           ofRandom(worldBound));
+    
+    ofVec3f pos3 = ofVec3f(ofRandom(worldBound),
+                           ofRandom(worldBound),
+                           ofRandom(worldBound));
+    
+    ofVec3f pos4 = ofVec3f(ofRandom(worldBound),
+                           ofRandom(worldBound),
+                           ofRandom(worldBound));
+    
+    light1.setSpecularColor(ofColor::white);
+    light1.setScale(1.0f);
+    light1.setDiffuseColor(ofColor::white);
+    light1.setPosition(pos1);
+    light1.setPointLight();
+    
+    light2.setSpecularColor(ofColor::white);
+    light2.setScale(1.0f);
+    light2.setDiffuseColor(ofColor::white);
+    light2.setPosition(pos2);
+    light2.setPointLight();
+    
+    light3.setSpecularColor(ofColor::white);
+    light3.setScale(1.0f);
+    light3.setDiffuseColor(ofColor::white);
+    light3.setPosition(pos3);
+    light3.setPointLight();
+    
+    light4.setSpecularColor(ofColor::white);
+    light4.setScale(1.0f);
+    light4.setDiffuseColor(ofColor::white);
+    light4.setPosition(pos4);
+    light4.setPointLight();
     
     /* STUFF FOR COLONY */
-
-    ofSpherePrimitive bounds;
     bounds.setPosition(swarmOrigin);
-    bounds.setRadius(regionRadius);
+    bounds.setRadius(worldBound);
     bounds.setResolution(1);
     
-    flock.setup(numBoids, bounds, 100, 2.5);
-
+    flock1.setup(numBoids, bounds, 100, 2.5);
+    flock1.setColor(255, 0 , 0, 10.10f);
     
+    flock2.setup(numBoids, bounds, 100, 2.5);
+    flock2.setColor(200, 100 , 0, 10.10f);
+
+    flock1.setAttractor(pos1, 100, 200); flock2.setAttractor(pos1, 100, 200);
+    flock1.setAttractor(pos2, 100, 200); flock2.setAttractor(pos2, 100, 200);
+    flock1.setAttractor(pos3, 100, 200); flock2.setAttractor(pos3, 100, 200);
+    flock1.setAttractor(pos4, 100, 200); flock2.setAttractor(pos4, 100, 200);
+    glPointSize(2.5);
+
 }
 
 //--------------------------------------------------------------
@@ -157,16 +208,17 @@ void ofApp::update(){
             }
             pos.x *= WIDTH;   // re-scale to comp size
             pos.y *= HEIGHT;
-            flashLightPos.x = (int)( (flashLightPos.x * (1 - positionEase) ) + (pos.x * positionEase) );
-            flashLightPos.y = (int)( (flashLightPos.y * (1 - positionEase) ) + (pos.y * positionEase) );
+            flashLightPos.x = ( (flashLightPos.x * (1 - positionEase) ) + (pos.x * positionEase) );
+            flashLightPos.y = ( (flashLightPos.y * (1 - positionEase) ) + (pos.y * positionEase) );
             
         } // end of while
         
-        cam.setPosition(flashLightPos);
-        
+        cam.setPosition(flashLightPos.x, flashLightPos.y, flashLightPos.z);
     }
     
-    flock.update();
+    flock1.update();
+    flock2.update();
+    worldRot = ofGetElapsedTimeMillis() / 200.0;
 }
 
 //--------------------------------------------------------------
@@ -180,47 +232,73 @@ void ofApp::draw(){
     ofEnableAlphaBlending();
     ofSetColor(255, 255, 255);
     scene.draw(0, 0);
-    
+    ofSetColor(255, 255, 255, detailAmount);
+    sceneDetail.draw(0,0);
     
     if (bReport) report(); // report on top
     
-
 }
 
 //--------------------------------------------------------------
 void ofApp::drawScene(){
     
-    /* All scenes are unified within camera */
-    ofLight light1;
-    light1.setSpecularColor(ofColor::wheat);
-    light1.setScale(10);
-    light1.setPosition(swarmOrigin);
-    light1.setAttenuation();
-
+    
+    float fadeAmnt = 40.0;
     
     scene.begin();
     ofPushStyle();
-    float fadeAmnt = 20.0;
+
     ofFill();
     ofSetColor(255, 255, 255, fadeAmnt);
     ofDrawRectangle(0, 0, WIDTH, HEIGHT);
     ofPopStyle();
     cam.begin();
-    
 //    light1.enable();
 //    ofEnableLighting();
     
+    light1.enable();
+    light2.enable();
+    light3.enable();
+    light4.enable();
+    ofEnableLighting();
+    
+    
     ofNoFill();
-    ofSetColor(ofColor::white, 255);
-    
-//    flock.draw(true, true, true, true);
-    flock.draw(true, false, false, false);
-    
+    ofPushMatrix();
+    ofRotateY(worldRot);
+    flock1.draw(true, false, false, false); flock2.draw(true, false, false, false);
+    ofPopMatrix();
     cam.end();
     scene.end();
     
+    sceneDetail.begin();
+    ofPushStyle();
+    ofFill();
+    ofSetColor(255, 255, 255, fadeAmnt);
+    ofDrawRectangle(0, 0, WIDTH, HEIGHT);
+    ofPopStyle();
+    cam.begin();
+    //    light1.enable();
+    //    ofEnableLighting();
+    
+    ofNoFill();
+    ofPushMatrix();
+    ofRotateY(worldRot);
+    flock1.draw(false, true, true, true); flock2.draw(false, true, true, false);
+    ofPopMatrix();
+    cam.end();
+    sceneDetail.end();
+    
     ofDisableLighting();
     
+}
+//--------------------------------------------------------------
+void ofApp::setupWorld(){
+
+}
+
+//--------------------------------------------------------------
+void ofApp::killWorld(){
     
 }
 
@@ -233,7 +311,7 @@ void ofApp::report(){
     << PORT << endl
     << endl
     << "Mesh created with "
-    << flock.getNumVertices()
+    << flock1.getNumVertices()
     << " vertices" << endl
     << endl
     << "Last position "
@@ -245,7 +323,9 @@ void ofApp::report(){
     << "'O'       - toggle OSC control " << endl
     << endl
     << "Camera position: "
-    << cam.getPosition() << endl;
+    << cam.getPosition() << endl
+    << "Camera rotation: "
+    << worldRot << endl;
     
     ofDrawBitmapString(reportStr.str(), 20, 20);
     ofPopStyle();
@@ -273,7 +353,7 @@ void ofApp::keyPressed(int key){
             break;
             
         case OF_KEY_BACKSPACE:
-            cam.setPosition(0, 0, -500);
+            cam.setPosition(swarmOrigin - camDist);
             cam.lookAt(swarmOrigin);
             break;
     }

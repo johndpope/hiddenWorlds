@@ -18,15 +18,15 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
     float rad = bounds_.getRadius();
     ofVec3f center = bounds_.getPosition();
     flock.setup(numBoids, center, dev_);
+    colour = ofColor::white;
+    shininess = 1.0f;
     
+    mat.setDiffuseColor(colour);
+    mat.setAmbientColor(colour);
+//    mat.setShininess(shininess);
     
-    
-    
-//    flock.setBounds(min, min, min, 1000, 1000, 1000); //temporary for box behaviour
-//    flock.setBounds(0,0,-ofGetWidth(),ofGetWidth(), ofGetHeight(),0);
     flock.setBounds(center, rad);
     flock.setDt(dt_);
-    
     
     /* POPULATE MESH */
     ofMesh tempMesh;
@@ -41,11 +41,9 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
     
     flockMesh.clear();
     flockMesh = tempMesh;
-
     
 }
 void MyFlock::update() {
-    
     flock.update();
     for (int i = 0; i < numBoids; i++){
         ofVec3f point = flock.boids[i] -> getLoc();
@@ -55,10 +53,16 @@ void MyFlock::update() {
 
 }
 void MyFlock::draw(bool bDrawVertices = true, bool bDrawWire = false, bool bDrawFaces = false, bool bDrawBlob = false) {
-
+    
+    ofPushStyle();
+    ofSetColor(colour);
+    mat.begin();
     if (bDrawVertices) flockMesh.drawVertices();
+    ofSetColor(ofColor::white);
     if (bDrawWire)     flockMesh.drawWireframe();
+    ofSetColor(colour);
     if (bDrawFaces)    flockMesh.drawFaces();
+    mat.end();
     
     if (bDrawBlob) {
         ofPolyline blob;
@@ -69,7 +73,33 @@ void MyFlock::draw(bool bDrawVertices = true, bool bDrawWire = false, bool bDraw
         blob = blob.getResampledByCount(200).getSmoothed(8);
         blob.draw();
     }
+    ofPopStyle();
 
 }
+
+
+
+void MyFlock::setColor(int r, int g, int b, float shiny) {
+    colour = ofColor(r, g, b);
+    mat.setDiffuseColor(colour);
+    mat.setAmbientColor(colour);
+//    mat.setShininess(shiny);
+}
+
+
+void MyFlock::setAttractor(ofVec3f loc, float force, float sensorDist){
+    
+    flock.addAttractionPoint(loc, force, sensorDist);
+    
+}
+
+
+
+int MyFlock::getNumVertices(){
+    
+    return flockMesh.getNumVertices();
+    
+}
+
 
 

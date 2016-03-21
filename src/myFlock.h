@@ -20,11 +20,18 @@ public:
     void setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float dt_);
     void update();
     void draw(bool bDrawVertices, bool bDrawWire, bool bDrawFaces, bool bDrawBlob);
+    void setColor(int r, int g, int b, float shiny);
     
-    int getNumVertices(){ return flockMesh.getNumVertices(); }
+    void setAttractor(ofVec3f loc, float force, float sensorDist);
+    
+    int getNumVertices();
     
     Flock3d   flock;
     ofVboMesh flockMesh;
+    ofMaterial mat;
     int numBoids;
+    ofColor colour;
+    float shininess;
+    
     
 };
