@@ -36,10 +36,10 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
     ofMesh tempMesh;
     tempMesh.clear();
     tempMesh.setupIndicesAuto(); // add index automatically
-    tempMesh.setMode(OF_PRIMITIVE_TRIANGLES);
+    tempMesh.setMode(OF_PRIMITIVE_TRIANGLE_STRIP);
     
     for (int i = 0; i < numBoids; i++){
-        ofVec2f pos = flock.boids[i]->getLoc();
+        ofVec2f pos = flock.boids[i] -> getLoc();
         tempMesh.addVertex(pos);
         tempMesh.addTexCoord(pos);
     }
@@ -50,44 +50,40 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
     flockMesh.clear();
     flockMesh = tempMesh;
     
-    // load the texure
+    /* load the texture */
     if (CONSTANTS.bRenderSprite) {
         ofEnablePointSprites();         // will let me render a point with a sprite
         ofDisableArbTex();
         ofLoadImage(texture, CONSTANTS.file);
     }
-    // note that we disable arb tex, meaning we will use normalized texture coordinates,
-    // where a texture's x and y coordinate are each expressed as a normalized float.
-    // this makes things slightly easier in the shader.
-    
 
 }
 
 void MyFlock::update() {
     
     flock.update();
+    
     for (int i = 0; i < numBoids; i++){
         ofVec3f point = flock.boids[i] -> getLoc();
         flockMesh.setVertex(i, point);
     }
-    
 }
 
 void MyFlock::draw() {
-    
     
     ofPushStyle();
     
         /* Draw Vertices */
         glPointSize(pointSize);
         ofSetColor(colour);
-    
         if (CONSTANTS.bRenderSprite) texture.bind();
+    
         mat.begin();
     
         flockMesh.drawVertices();
     
         mat.end();
+    
         if (CONSTANTS.bRenderSprite) texture.unbind();
     
     ofPopStyle();

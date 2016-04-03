@@ -28,6 +28,7 @@ class ofApp : public ofBaseApp{
         void fade();                // fade background
 
         void drawHalftone();        // draws halftone overlay
+        void drawASCII();
     
 		void keyPressed(int key);
 		void keyReleased(int key);
@@ -37,6 +38,9 @@ class ofApp : public ofBaseApp{
     
     /* > Useful stuff < */
     CONSTANTS CONSTANTS;
+    vector <ofColor> palette;
+    string asciiCharacters;
+    ofTrueTypeFont  font;
     bool bReport, bCamFromOSC;
     bool bIsPaused;
     float positionEase;
@@ -73,12 +77,12 @@ class ofApp : public ofBaseApp{
     float anaglyphSize;
     
     ofVec3f   viewPos;
-    ofLight   light1, light2, light3, light4;
+    vector <ofLight> lights;
     
     /* > Flock stuff < */
     void updateFlock();
+    vector <MyFlock> flocks;
     ofSpherePrimitive bounds;
-    MyFlock   flock1, flock2;
     ofVec3f   swarmOrigin;
     int       numBoids;
     int       type;

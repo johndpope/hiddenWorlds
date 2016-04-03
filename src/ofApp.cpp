@@ -33,24 +33,26 @@
  .v1 - create camera system from OSC
  
  to implement:
+ - add force field to particles
  - ASCII to replace halftone
- - anaglyph
- - sound input
  - flocks in vector
  - find way to make good meshes
  - swarms avoid each other
- - tweak swarm appearence
- - GL shader for swarm?
- - look into spring behaviours for mesh with some metaballs
+ 
+ - looks like bounds is a cube?
 
  done:
+  - make colour pallette
   - implement set colour for meshes
   - create constants header file
   -- populate function called in setup updates all variables
   - two apps fullscreen in two screens
+  - anaglyph
+  - sound input
+  - GL shader for swarm
  
  failed:
- - metaballs is a no go
+ - metaballs is a no go, double tried
  - instancing with VBO sounds ok but didnt go anywhere
  - Close in flashlight look
  - get orientation from Wii and position from kinect
@@ -110,17 +112,18 @@ void ofApp::setup(){
     
     bReport         = false;        // show system report
     positionEase    = 0.05;         // interpolation value for positions
-    numBoids        = 0500;         // number of boids (for each flock)
+    int numFlocks   = 020;          // only little flocks might handle metaballs
+    numBoids        = 050;         // number of boids (for each flock)
     worldBound      = 1200.0f;      // bounding area
     float zDist     = worldBound;   // camera distance from center
-    fadeAmnt        = 05.;
-    detailAmount    = 100;         // opacity level for beauty pass
-    worldRotSpeed   = 0.1f;        // 0 no rotation
+    fadeAmnt        = 01.5;
+    detailAmount    = 000;         // opacity level for beauty pass
+    worldRotSpeed   = 01.1f;       // 0 no rotation
     halftoneSize    = 3.0f;         // 3.0 seems to be good
     
     lineWidth       = .9;           // 1 seems to be good
-    pointSize       = 46.0;         // 3 seems to be good
-    pointOpacity    = 200;
+    pointSize       = 36.0;         // 3 seems to be good
+    pointOpacity    = 255;
     float shiny     = .1f;          // .1 looks nice
     float lightSize = 1.0f;         // size for point lights
     anaglyphSize    = 15.0f;
@@ -130,10 +133,17 @@ void ofApp::setup(){
     bDrawWire = false;
     bDrawFace = false;
     bDrawBlob = false;
+
+    /* Add a couple of colours */
+    palette.push_back(ofColor(200, 200, 255));  // sanguine
+    palette.push_back(ofColor(255, 200, 200));  // steel
+//    palette.push_back(ofColor(89,  113,  150));  // blue
+//    palette.push_back(ofColor(46,  189, 179));  // turquoise
+//    palette.push_back(ofColor(141, 219, 186));  // aqua
+//    palette.push_back(ofColor(255, 202, 192));  // straw
+//    palette.push_back(ofColor(252, 76,  67));  // orange
     
     /* > END OF USER OPTIONS < */
-    
-    
     
     
     
@@ -183,6 +193,9 @@ void ofApp::setup(){
     ofClear(255, 255, 255, 0);
     style.end();
     
+    /* From example */
+    font.load("Courier New Bold.ttf", 15);
+    asciiCharacters =  string("  ..,,,'''``--_:;^^**""=+<>iv%&xclrs)/){}I?!][1taeo7zjLunT#@JCwfy325Fp6mqSghVd4EgXPGZbYkOA8U$KHDBWNMR0Q");
     
     /* ======================== OBJECTS INIT ==================================== */
     /* ========================================================================== */
@@ -199,41 +212,33 @@ void ofApp::setup(){
 
     /* > SCENE LIGHTING < */
     ofVec3f pos1 = swarmOrigin;
-    ofVec3f pos2 = ofVec3f(ofRandom(worldBound),
-                           ofRandom(worldBound),
-                           ofRandom(worldBound));
+    int numLigths = 4;
     
-    ofVec3f pos3 = ofVec3f(ofRandom(worldBound),
-                           ofRandom(worldBound),
-                           ofRandom(worldBound));
     
-    ofVec3f pos4 = ofVec3f(ofRandom(worldBound),
-                           ofRandom(worldBound),
-                           ofRandom(worldBound));
-    
+    ofLight light1;
     light1.setSpecularColor(ofColor::white);
     light1.setScale(lightSize);
     light1.setDiffuseColor(ofColor::darkGray);
     light1.setPosition(pos1);
     light1.setPointLight();
     
-    light2.setSpecularColor(ofColor::white);
-    light2.setScale(lightSize);
-    light2.setDiffuseColor(ofColor::darkGray);
-    light2.setPosition(pos2);
-    light2.setPointLight();
+    lights.push_back(light1);
     
-    light3.setSpecularColor(ofColor::white);
-    light3.setScale(lightSize);
-    light3.setDiffuseColor(ofColor::darkGray);
-    light3.setPosition(pos3);
-    light3.setPointLight();
-    
-    light4.setSpecularColor(ofColor::white);
-    light4.setScale(lightSize);
-    light4.setDiffuseColor(ofColor::darkGray);
-    light4.setPosition(pos4);
-    light4.setPointLight();
+    for (int i = 0; i < numLigths; i++){
+        ofVec3f pos = ofVec3f(ofRandom(-worldBound, worldBound),
+                              ofRandom(-worldBound, worldBound),
+                              ofRandom(-worldBound, worldBound));
+        
+        ofLight l;
+        l.setSpecularColor(ofColor::white);
+        l.setScale(lightSize);
+        l.setDiffuseColor(ofColor::darkGray);
+        l.setPosition(pos);
+        l.setPointLight();
+        
+        lights.push_back(l);
+        
+    }
     
     /* > SOUND < */
     int bufferSize = 256;
@@ -250,28 +255,25 @@ void ofApp::setup(){
     bounds.setPosition(swarmOrigin);
     bounds.setRadius(worldBound);
     
-    flock1.setup(numBoids, bounds, 200, 5.1);
-    flock1.setColor(255, 200 , 200, shiny);
-    flock1.setDrawValues(pointSize, lineWidth);
+    /* !!! I am not sure why did I have to create object and initialize separate */
+    for (int i = 0; i < numFlocks; i++) {
+        MyFlock f;
+        flocks.push_back(f);
+    }
     
-    flock2.setup(numBoids, bounds, 200, 4.5);
-    flock2.setColor(200, 200, 255, shiny);
-    flock2.setDrawValues(pointSize, lineWidth);
-    
-    
-    /* Add only one attractor, hopefully for a spherical displacement look */
-//    float force = ofRandom(-750, 250);
-//    float dist  = ofRandom(1100,  0);
-    float force = -10;
-    float dist  = 600;
-    flock1.setAttractor(pos1, force, dist);
-    flock2.setAttractor(pos1, force, dist);
-   
-    force = 10;
-    dist  = 1200;
-    flock1.setAttractor(pos1, force, dist);
-    flock2.setAttractor(pos1, force, dist);
-    
+    for (int i = 0; i < flocks.size(); i++) {
+        float repelForce = -10;
+        float repelDist  = 600;
+        float pushForce  = 10;
+        float pushDist   = 1200;
+        ofColor color    = palette[ofRandom(palette.size())];
+        
+        flocks[i].setup(numBoids, bounds, worldBound / 3.0, 5.1);    // !!add deviation
+        flocks[i].setColor(color.r, color.g, color.b, shiny);
+        flocks[i].setDrawValues(pointSize, lineWidth);
+        flocks[i].setAttractor(pos1, repelForce, repelDist);
+        flocks[i].setAttractor(pos1, pushForce, pushDist);
+    }
     
     /* > CALL TO DRAW SCENES < */
     updateFlock();
@@ -391,6 +393,7 @@ void ofApp::draw(){
         sceneDetail.draw(anaglyph, anaglyph);
     }
     
+    
     ofEnableBlendMode(OF_BLENDMODE_MULTIPLY);           // <--- render overlay
     ofSetColor(255, 255, 255, 30);
     style.draw(0, 0);
@@ -403,42 +406,27 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::updateFlock(){
     
-    if (bNewFlockValues) {
-        
-        flock1.setSeparation(separate);
-        flock1.setSeparationDist(distSeparation);
-        
-        flock1.setAlign(align);
-        flock1.setAlignDist(distAlign);
-        
-        flock1.setCohesion(cohesion);
-        flock1.setCohesionDist(distCohesion);
-        
-        flock1.setAttraction(attraction);
-        flock1.setAttractionDev(attractionDev);
-        flock1.setMaxSpeed(maxSpeed);
-        
-        //======================================================
-        
-        flock2.setSeparation(separate);
-        flock2.setSeparationDist(distSeparation);
-        
-        flock2.setAlign(align);
-        flock2.setAlignDist(distAlign);
-        
-        flock2.setCohesion(cohesion);
-        flock2.setCohesionDist(distCohesion);
-        
-        flock2.setAttraction(attraction);
-        flock2.setAttractionDev(attractionDev);
-        flock2.setMaxSpeed(maxSpeed);
-        
-        bNewFlockValues = false;
+    /* Updates all flocks in vector */
+    
+    for (int i = 0; i < flocks.size(); i++) {
+        if (bNewFlockValues) {
+            flocks[i].setSeparation(separate);
+            flocks[i].setSeparationDist(distSeparation);
+            
+            flocks[i].setAlign(align);
+            flocks[i].setAlignDist(distAlign);
+            
+            flocks[i].setCohesion(cohesion);
+            flocks[i].setCohesionDist(distCohesion);
+            
+            flocks[i].setAttraction(attraction);
+            flocks[i].setAttractionDev(attractionDev);
+            flocks[i].setMaxSpeed(maxSpeed);
+        }
+        flocks[i].update();
     }
-    
-    flock1.update();
-    flock2.update();
-    
+    bNewFlockValues = false;
+
 }
 
 //--------------------------------------------------------------
@@ -446,8 +434,9 @@ void ofApp::drawScene(bool bUpdateOverlay){
     
     /* > DRAW POINTS SCENE < */
     if (bUpdateOverlay) {
-        flock1.setDrawValues(pointSize, lineWidth);
-        flock2.setDrawValues(pointSize, lineWidth);
+        for (int i = 0; i < flocks.size(); i++) {
+            flocks[i].setDrawValues(pointSize, lineWidth);
+        }
     }
     
     scene.begin();
@@ -461,8 +450,9 @@ void ofApp::drawScene(bool bUpdateOverlay){
             ofEnableBlendMode(OF_BLENDMODE_ALPHA);    // overlay both flocks
     
             ofRotateY(worldRot);                    // rotate world over worldRot
-            flock1.draw();
-            flock2.draw();
+            for (int i = 0; i < flocks.size(); i++) {
+                flocks[i].draw();
+            }
     
             ofEnableBlendMode(OF_BLENDMODE_ALPHA);
     
@@ -484,8 +474,9 @@ void ofApp::drawScene(bool bUpdateOverlay){
         ofPushMatrix();
             ofEnableBlendMode(OF_BLENDMODE_ALPHA);
             ofRotateY(worldRot);
-            flock1.draw(bDrawWire, bDrawFace, bDrawBlob);
-            flock2.draw(bDrawWire, bDrawFace, bDrawBlob);
+            for (int i = 0; i < flocks.size(); i++) {
+                flocks[i].draw(bDrawWire, bDrawFace, bDrawBlob);
+            }
             ofEnableBlendMode(OF_BLENDMODE_ALPHA);
         ofPopMatrix();
         sceneDetail.end();
@@ -536,6 +527,26 @@ void ofApp::drawHalftone(){
 }
 
 //--------------------------------------------------------------
+void ofApp::drawASCII(){
+
+    /* Create ASCII effect for overlay - DIDNT WORK */
+
+    style.begin();
+    ofBackground(0, 0, 0);
+    ofSetColor(255);
+    
+    for (int i = 0; i < CONSTANTS.WIDTH; i+= 7){
+        for (int j = 0; j < CONSTANTS.HEIGHT; j+= 9){
+            int rnd = ofRandom(asciiCharacters.size() + 1);
+            font.drawString(ofToString(asciiCharacters[rnd]), i, j);
+        }
+    }
+    
+    style.end();
+    
+}
+
+//--------------------------------------------------------------
 void ofApp::audioIn(float * input, int bufferSize, int nChannels){
     
     float curVol = 0.0;
@@ -571,11 +582,13 @@ void ofApp::lightsOn(){
     /* Enable scene lighting - if we are not drawing sprites */
     cam.begin();
     if (!CONSTANTS.bRenderSprite) {
-        light1.enable();
-        light2.enable();
-        light3.enable();
-        light4.enable();
-        ofEnableLighting();
+        for (int i = 0; i < lights.size(); i++){
+            lights[i].enable();
+            lights[i].enable();
+            lights[i].enable();
+            lights[i].enable();
+            ofEnableLighting();
+        }
     }
     
 }
@@ -586,11 +599,14 @@ void ofApp::lightsOff(){
     
     /* Disable scene lighting - if we are not drawing sprites */
     if (!CONSTANTS.bRenderSprite) {
-        light1.disable();
-        light2.disable();
-        light3.disable();
-        light4.disable();
-        ofDisableLighting();
+        for (int i = 0; i < lights.size(); i++){
+            lights[i].disable();
+            lights[i].disable();
+            lights[i].disable();
+            lights[i].disable();
+            ofDisableLighting();
+        }
+
     }
     cam.end();
 }
@@ -618,10 +634,6 @@ void ofApp::report(){
     stringstream reportStr;
     reportStr << "Listening to OSC events on port "
     << PORT << endl
-    << endl
-    << "Mesh created with "
-    << flock1.getNumVertices()
-    << " vertices" << endl
     << endl
     << "Last position "
     << viewPos << endl

@@ -60,6 +60,8 @@ public:
     ofVboMesh flockMesh;
     ofMaterial mat;
     ofTexture texture;
+    ofShader shader;
+
     ofColor colour;
     float shininess;
     float pointSize, lineWidth;

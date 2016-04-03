@@ -31,6 +31,6 @@ public:
     ofVec3f ORIGIN;         // holds common origins
     
     bool bRenderSprite = true;
-    string file = "dot.png";    // file path for particle texture
+    string file = "dotv2.png";    // file path for particle texture
     
 };
