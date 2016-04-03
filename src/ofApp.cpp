@@ -5,6 +5,8 @@
  openframeworks app for Creative Coding class
  Carlos Valente - Goldsmiths March 2016
  
+ > Staring at digital skies <
+ 
  A magic flaslight reveals hidden creatures,
  competing swarm systems float in middair invisible from
  the unaware spectator
@@ -17,7 +19,8 @@
  use twin app, hiddenWorldsUtils or send x, y - 0, 1 values
  to given OSC channel;
  
- THIS IS v10 - more flocks, less boids, tweak behaviours (this looks like molecules, lets go with that!)
+ THIS IS .v11 tweak behaviours (this looks like molecules, lets go with that!)
+ .v10 - more flocks! shader this!
  .v9 - add sound input control for anaglyph
  .v8 - add OSC control for photoshoot
  .v7 - handle GL stuff, modify looks, look with GL points, meh
@@ -33,15 +36,13 @@
  .v1 - create camera system from OSC
  
  to implement:
- - add force field to particles
- - ASCII to replace halftone
- - flocks in vector
  - find way to make good meshes
  - swarms avoid each other
- 
  - looks like bounds is a cube?
 
  done:
+  - flocks in vector
+  - add force field to particles
   - make colour pallette
   - implement set colour for meshes
   - create constants header file
@@ -52,12 +53,13 @@
   - GL shader for swarm
  
  failed:
- - metaballs is a no go, double tried
- - instancing with VBO sounds ok but didnt go anywhere
- - Close in flashlight look
- - get orientation from Wii and position from kinect
- - share ofParameters within classes <--
- - ofParameter implementation for OSC (ofParameters didnt prove advantage on transferring data)
+  - ASCII to replace halftone (could be worth a second go)
+  - metaballs is a no go, double tried
+  - instancing with VBO sounds ok but didnt go anywhere
+  - Close in flashlight look
+  - get orientation from Wii and position from kinect
+  - share ofParameters within classes <--
+  - ofParameter implementation for OSC (ofParameters didnt prove advantage on transferring data)
  
  >>> STUFF IM FINDING
  
@@ -112,17 +114,18 @@ void ofApp::setup(){
     
     bReport         = false;        // show system report
     positionEase    = 0.05;         // interpolation value for positions
-    int numFlocks   = 020;          // only little flocks might handle metaballs
-    numBoids        = 050;         // number of boids (for each flock)
+    
+    int numFlocks   = 80;          // only little flocks might handle metaballs
+    numBoids        = 020;         // number of boids (for each flock)
     worldBound      = 1200.0f;      // bounding area
-    float zDist     = worldBound;   // camera distance from center
-    fadeAmnt        = 01.5;
+    float zDist     = worldBound * 2;   // camera distance from center
+    fadeAmnt        = 11.5;
     detailAmount    = 000;         // opacity level for beauty pass
-    worldRotSpeed   = 01.1f;       // 0 no rotation
-    halftoneSize    = 3.0f;         // 3.0 seems to be good
+    worldRotSpeed   = 01.0f;       // 0 no rotation
+    halftoneSize    = 4.0f;       // 4.0 seems to be good
     
     lineWidth       = .9;           // 1 seems to be good
-    pointSize       = 36.0;         // 3 seems to be good
+    pointSize       = 25.0;         // 25 seems to be good
     pointOpacity    = 255;
     float shiny     = .1f;          // .1 looks nice
     float lightSize = 1.0f;         // size for point lights
@@ -135,13 +138,14 @@ void ofApp::setup(){
     bDrawBlob = false;
 
     /* Add a couple of colours */
-    palette.push_back(ofColor(200, 200, 255));  // sanguine
-    palette.push_back(ofColor(255, 200, 200));  // steel
-//    palette.push_back(ofColor(89,  113,  150));  // blue
-//    palette.push_back(ofColor(46,  189, 179));  // turquoise
-//    palette.push_back(ofColor(141, 219, 186));  // aqua
-//    palette.push_back(ofColor(255, 202, 192));  // straw
-//    palette.push_back(ofColor(252, 76,  67));  // orange
+//    palette.push_back(ofColor(240, 240, 255));  // sanguine
+//    palette.push_back(ofColor(255, 240, 240));  // steel
+    palette.push_back(ofColor(89,  113,  150));  // blue
+    palette.push_back(ofColor(46,  189, 179));  // turquoise
+    palette.push_back(ofColor(141, 219, 186));  // aqua
+    palette.push_back(ofColor(255, 202, 192));  // straw
+    palette.push_back(ofColor(252, 76,  67));  // orange
+    palette.push_back(ofColor(0, 76,  200));  // blue
     
     /* > END OF USER OPTIONS < */
     
@@ -164,6 +168,8 @@ void ofApp::setup(){
     bNewValues      = true;
     bIsPaused       = false;
     
+    anaglyph        = 1.0f;
+    
     /* Flock defaults */
     bNewFlockValues = true;
     separate        = 55.0f;
@@ -174,7 +180,7 @@ void ofApp::setup(){
     distCohesion    = 150.0f;
     attraction      = 10.0f;
     attractionDev   = 1.0f;
-    maxSpeed        = 1.0f;
+    maxSpeed        = 1.3f;
     
     /* FBO STUFF */
     scene.allocate(CONSTANTS.WIDTH, CONSTANTS.HEIGHT, GL_RGBA32F_ARB);          // allocate FBOs
@@ -193,10 +199,6 @@ void ofApp::setup(){
     ofClear(255, 255, 255, 0);
     style.end();
     
-    /* From example */
-    font.load("Courier New Bold.ttf", 15);
-    asciiCharacters =  string("  ..,,,'''``--_:;^^**""=+<>iv%&xclrs)/){}I?!][1taeo7zjLunT#@JCwfy325Fp6mqSghVd4EgXPGZbYkOA8U$KHDBWNMR0Q");
-    
     /* ======================== OBJECTS INIT ==================================== */
     /* ========================================================================== */
 
@@ -214,8 +216,7 @@ void ofApp::setup(){
     ofVec3f pos1 = swarmOrigin;
     int numLigths = 4;
     
-    
-    ofLight light1;
+    ofLight light1;                         // default light in center
     light1.setSpecularColor(ofColor::white);
     light1.setScale(lightSize);
     light1.setDiffuseColor(ofColor::darkGray);
@@ -240,6 +241,10 @@ void ofApp::setup(){
         
     }
     
+    /* ASCII OVERLAY - from example */
+    font.load("Courier New Bold.ttf", 15);
+    asciiCharacters =  string("  ..,,,'''``--_:;^^**""=+<>iv%&xclrs)/){}I?!][1taeo7zjLunT#@JCwfy325Fp6mqSghVd4EgXPGZbYkOA8U$KHDBWNMR0Q");
+    
     /* > SOUND < */
     int bufferSize = 256;
     left.assign(bufferSize, 0.0);
@@ -262,13 +267,13 @@ void ofApp::setup(){
     }
     
     for (int i = 0; i < flocks.size(); i++) {
-        float repelForce = -10;
+        float repelForce = -3;
         float repelDist  = 600;
-        float pushForce  = 10;
-        float pushDist   = 1200;
+        float pushForce  = 2;
+        float pushDist   = 800;
         ofColor color    = palette[ofRandom(palette.size())];
         
-        flocks[i].setup(numBoids, bounds, worldBound / 3.0, 5.1);    // !!add deviation
+        flocks[i].setup(numBoids, bounds, worldBound / 3.0, 5.1, pointSize);    // !!add deviation
         flocks[i].setColor(color.r, color.g, color.b, shiny);
         flocks[i].setDrawValues(pointSize, lineWidth);
         flocks[i].setAttractor(pos1, repelForce, repelDist);
@@ -290,9 +295,9 @@ void ofApp::update(){
     if (!bIsPaused) {
         
         /* > SOUND INPUT < */
-        if (bDoListen ) {
-            smoothedVol = ofMap(smoothedVol, 0.0, 1.3, 0.05, 1.0, true);
-        } else smoothedVol = 0.05f;
+        if (bDoListen )
+            anaglyph = ofMap(smoothedVol, 0.1, 0.5, 0.05, 1.0, true);
+
         
         /* > OSC RECEIVER < */
         while(osc.hasWaitingMessages()){
@@ -368,8 +373,7 @@ void ofApp::update(){
 void ofApp::draw(){
     
     /* Initialize aux */
-//    glDepthMask(GL_FALSE); // Not quite sure
-    float anaglyph = smoothedVol * anaglyphSize;
+    anaglyph = anaglyph * anaglyphSize;
     
     /* > Composite FBOs < */
 
@@ -395,7 +399,7 @@ void ofApp::draw(){
     
     
     ofEnableBlendMode(OF_BLENDMODE_MULTIPLY);           // <--- render overlay
-    ofSetColor(255, 255, 255, 30);
+    ofSetColor(255, 255, 255, 20);
     style.draw(0, 0);
     
     ofEnableBlendMode(OF_BLENDMODE_ALPHA);
@@ -569,9 +573,8 @@ void ofApp::audioIn(float * input, int bufferSize, int nChannels){
     
     // this is how we get the root of rms :)
     curVol = sqrt( curVol );
-    
-    smoothedVol *= 0.98;
-    smoothedVol += 0.02 * curVol;
+    smoothedVol *= 0.995;
+    smoothedVol += 0.005 * curVol;
     
 }
 
@@ -592,7 +595,6 @@ void ofApp::lightsOn(){
     }
     
 }
-
 
 //--------------------------------------------------------------
 void ofApp::lightsOff(){
@@ -724,8 +726,6 @@ void ofApp::keyPressed(int key){
         case 's':
             bDoListen = !bDoListen;
             break;
-            
-
     }
 }
 

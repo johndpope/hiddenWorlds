@@ -9,28 +9,35 @@
  
  Wrapping all boids functions for ease of use, hidding
  long stuff
+ 
+ Flock is made of several parts
+  - VBO (for point render with shader)
+  - VBOmesh (for face and wireframe render)
+  - points array
 */
 
 #include "myFlock.h"
 
-void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float dt_ ) {
+void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float dt_, float pointSize_) {
     
+    /* Initialize flock */
     numBoids = numBoids_;
+    pointSize = pointSize_;
     float rad = bounds_.getRadius();
     ofVec3f center = bounds_.getPosition();
     flock.setup(numBoids, center, dev_);
+    flock.setBounds(center, rad);
+    flock.setDt(dt_);
+    
+    /* Add default values */
     colour = ofColor::white;
     shininess = 0.010f;
-    
-    pointSize = 3.0f;
     lineWidth = .1f;
     
+    /* Set Material for vboMesh */
     mat.setDiffuseColor(colour);
     mat.setAmbientColor(colour);
     mat.setShininess(shininess);
-    
-    flock.setBounds(center, rad);
-    flock.setDt(dt_);
     
     /* POPULATE MESH */
     ofMesh tempMesh;
@@ -42,6 +49,11 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
         ofVec2f pos = flock.boids[i] -> getLoc();
         tempMesh.addVertex(pos);
         tempMesh.addTexCoord(pos);
+        
+        float size = ofRandom(pointSize / 2, pointSize);
+        tempMesh.addNormal(ofVec3f(size));
+        points.push_back(pos);
+        sizes.push_back(ofVec3f(size));
     }
     
     flockMesh.setMode(OF_PRIMITIVE_TRIANGLES);
@@ -50,41 +62,58 @@ void MyFlock::setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float 
     flockMesh.clear();
     flockMesh = tempMesh;
     
+    int total = (int)points.size();
+    mesh.setVertexData(&points[0], total, GL_STREAM_DRAW);
+    mesh.setNormalData(&sizes[0], total, GL_STREAM_DRAW);
+    
     /* load the texture */
     if (CONSTANTS.bRenderSprite) {
-        ofEnablePointSprites();         // will let me render a point with a sprite
         ofDisableArbTex();
         ofLoadImage(texture, CONSTANTS.file);
+        shader.load("shaders/shader");  // shader from POINTS AS TEXTURES example
     }
 
 }
 
 void MyFlock::update() {
     
+    /* Initialize aux */
+    int total = (int)points.size();
+    
+    /* Update flock */
     flock.update();
     
-    for (int i = 0; i < numBoids; i++){
+    /* Update vboMesh and points */
+    for (int i = 0; i < total; i++){
         ofVec3f point = flock.boids[i] -> getLoc();
         flockMesh.setVertex(i, point);
+        points[i] = point;
     }
+    
+    /* Update vbo (for shader) */
+    mesh.setVertexData(&points[0], total, GL_STREAM_DRAW);
+    mesh.setNormalData(&sizes[0], total, GL_STREAM_DRAW);
+    mesh.setVertexData(&points[0], total, GL_STREAM_DRAW);
+    
 }
 
 void MyFlock::draw() {
     
     ofPushStyle();
     
-        /* Draw Vertices */
-        glPointSize(pointSize);
-        ofSetColor(colour);
-        if (CONSTANTS.bRenderSprite) texture.bind();
+        ofSetColor(colour.r, colour.g, colour.b, colour.a / 4);
+        glDepthMask(GL_FALSE);
+        ofEnableBlendMode(OF_BLENDMODE_ADD);
+        ofEnablePointSprites();
     
-        mat.begin();
+        shader.begin();
+            texture.bind();
+                mesh.draw(GL_POINTS, 0, flockMesh.getNumVertices());
+            texture.unbind();
+        shader.end();
     
-        flockMesh.drawVertices();
-    
-        mat.end();
-    
-        if (CONSTANTS.bRenderSprite) texture.unbind();
+        ofDisablePointSprites();
+        ofDisableBlendMode();
     
     ofPopStyle();
 }
@@ -128,10 +157,12 @@ void MyFlock::draw(bool bDrawWire, bool bDrawFaces, bool bDrawBlob) {
 }
 
 void MyFlock::setColor(int r, int g, int b, float shiny) {
+    
     colour = ofColor(r, g, b);
     mat.setDiffuseColor(colour);
     mat.setAmbientColor(colour);
     mat.setShininess(shiny);
+    
 }
 
 

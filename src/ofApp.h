@@ -39,8 +39,6 @@ class ofApp : public ofBaseApp{
     /* > Useful stuff < */
     CONSTANTS CONSTANTS;
     vector <ofColor> palette;
-    string asciiCharacters;
-    ofTrueTypeFont  font;
     bool bReport, bCamFromOSC;
     bool bIsPaused;
     float positionEase;
@@ -50,48 +48,51 @@ class ofApp : public ofBaseApp{
     int detailAmount;
     int worldBound;
     
-    
     /* > OSC Stuff < */
     ofxOscReceiver osc;
     bool bNewValues;
     
     /* > AUDIO REACTIVE < */
     void audioIn(float * input, int bufferSize, int nChannels);
-    ofSoundStream soundStream;
-    float smoothedVol, scaledVol;
-    vector <float> left;
-    vector <float> right;
-    bool bDoListen;
+    ofSoundStream   soundStream;
+    float           smoothedVol, scaledVol;
+    vector <float>  left;
+    vector <float>  right;
+    bool            bDoListen;
     
     /* > FBOs < */
     ofFbo scene, sceneDetail, style;
     float fadeAmnt;
     
-    /* > 3D pretty stuff < */
-    ofEasyCam cam;
-    ofVec3f camDist;
-    ofShader shader;
-    ofTexture texture;
-    bool bDrawWire, bDrawFace, bDrawBlob;
-    float pointOpacity, pointSize, lineWidth;
-    float anaglyphSize;
+    /* > 3D appearence stuff < */
+    ofEasyCam   cam;
+    ofVec3f     camDist;
+    ofShader    shader;
+    ofTexture   texture;
+    bool        bDrawWire, bDrawFace, bDrawBlob;
+    float       pointOpacity, pointSize, lineWidth;
+    float       anaglyph, anaglyphSize;
     
-    ofVec3f   viewPos;
+    ofVec3f viewPos;
     vector <ofLight> lights;
+    
+    /* > ASCII < */
+    string asciiCharacters;
+    ofTrueTypeFont  font;
     
     /* > Flock stuff < */
     void updateFlock();
-    vector <MyFlock> flocks;
-    ofSpherePrimitive bounds;
-    ofVec3f   swarmOrigin;
-    int       numBoids;
-    int       type;
+    vector <MyFlock>    flocks;
+    ofSpherePrimitive   bounds;
+    ofVec3f             swarmOrigin;
+    int                 numBoids;
+    int                 type;
     
-    bool bNewFlockValues;
-    float separate, distSeparation;
-    float align, distAlign;
-    float cohesion, distCohesion;
-    float attraction, attractionDev;
-    float maxSpeed;
+    bool    bNewFlockValues;
+    float   separate, distSeparation;
+    float   align, distAlign;
+    float   cohesion, distCohesion;
+    float   attraction, attractionDev;
+    float   maxSpeed;
 		
 };

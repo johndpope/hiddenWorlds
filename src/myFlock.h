@@ -20,7 +20,7 @@
 class MyFlock : public ofBaseApp {
 public:
     
-    void setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float dt_);
+    void setup(int numBoids_, ofSpherePrimitive bounds_, float dev_, float dt_, float pointSize_);
     void update();
     void draw(); // draw Points
     void draw(bool bDrawWire, bool bDrawFaces, bool bDrawBlob); // draw other
@@ -57,7 +57,11 @@ public:
     Flock3d flock;
     int numBoids;
     
+    vector <ofVec3f> points;
+    vector <ofVec3f> sizes;
+    
     ofVboMesh flockMesh;
+    ofVbo mesh;
     ofMaterial mat;
     ofTexture texture;
     ofShader shader;
